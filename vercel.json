@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/render.mjs": {
-      "includeFiles": "index.php|objeto.php|checkout.php|includes/helpers.php|public/**"
+      "includeFiles": "{index.php,objeto.php,checkout.php,includes/**,public/**}"
     }
   },
   "rewrites": [
