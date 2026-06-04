@@ -1,5 +1,6 @@
 {
   "functions": {
+    "api/*.mjs": {},
     "server.mjs": {
       "includeFiles": "index.php|objeto.php|checkout.php|includes/helpers.php|public/**"
     }
