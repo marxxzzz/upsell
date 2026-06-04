@@ -273,6 +273,11 @@ app.get(['/', '/correios', '/index.php'], (req, res) => {
 
 app.use(express.static(__dirname, { index: false }));
 
-app.listen(PORT, () => {
-  console.log(`Servidor em http://localhost:${PORT}`);
-});
+// local dev
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`Servidor em http://localhost:${PORT}`);
+  });
+}
+
+export default app;
