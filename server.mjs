@@ -271,7 +271,7 @@ app.get(['/', '/correios', '/index.php'], (req, res) => {
   res.type('html').send(html);
 });
 
-app.use(express.static(__dirname, { index: false }));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // local dev
 if (process.env.VERCEL !== '1') {

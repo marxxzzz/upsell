@@ -2,7 +2,13 @@
   "version": 2,
   "builds": [
     { "src": "api/*.mjs", "use": "@vercel/node" },
-    { "src": "server.mjs", "use": "@vercel/node" }
+    {
+      "src": "server.mjs",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["*.php", "includes/**", "public/**"]
+      }
+    }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
