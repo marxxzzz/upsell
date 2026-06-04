@@ -4,11 +4,7 @@
       "includeFiles": "index.php|objeto.php|checkout.php|includes/helpers.php|public/**"
     }
   },
-  "routes": [
-    { "src": "/api/pix", "dest": "/api/pix.mjs" },
-    { "src": "/api/payment-status", "dest": "/api/payment-status.mjs" },
-    { "src": "/api/save-customer", "dest": "/api/save-customer.mjs" },
-    { "src": "/api/api", "dest": "/api/api.mjs" },
-    { "src": "/(.*)", "dest": "/server.mjs" }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/server.mjs" }
   ]
 }
