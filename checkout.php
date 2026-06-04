@@ -1537,7 +1537,7 @@ $trackingJson = json_encode($tracking, JSON_UNESCAPED_UNICODE);
         
         window.createPixWithCurrentApi = async function(payload) {
             try {
-                const response = await fetch('api_pix_proxy.php', {
+                const response = await fetch('/api/pix', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -1715,10 +1715,9 @@ $trackingJson = json_encode($tracking, JSON_UNESCAPED_UNICODE);
 
         function paymentStatusUrl() {
             const params = new URLSearchParams({
-                reference: chargeId || '',
-                nonce: paymentStatusNonce || ''
+                reference: chargeId || ''
             });
-            return 'api_payment_status_proxy.php?' + params.toString();
+            return '/api/payment-status?' + params.toString();
         }
 
         async function hydrateNameFromCpf() {
@@ -1736,7 +1735,7 @@ $trackingJson = json_encode($tracking, JSON_UNESCAPED_UNICODE);
             }
 
             try {
-                const response = await fetch('api.php?cpf=' + encodeURIComponent(cpf) + '&nonce=' + encodeURIComponent(cpfLookupNonce), {
+                const response = await fetch('/api/api?cpf=' + encodeURIComponent(cpf) + '&nonce=' + encodeURIComponent(cpfLookupNonce), {
                     headers: { 'Accept': 'application/json' }
                 });
                 const data = await response.json();

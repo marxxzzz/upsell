@@ -378,7 +378,7 @@ $trackingQuery = ltrim(build_query($_SESSION['tracking'] ?? []), '?');
       };
 
       const saveCustomer = async (payload) => {
-        const response = await fetch('save_customer.php', {
+        const response = await fetch('/api/save-customer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify(Object.assign({ nonce: customerFlowNonce }, payload))
@@ -454,7 +454,7 @@ $trackingQuery = ltrim(build_query($_SESSION['tracking'] ?? []), '?');
         btnConsultar.querySelector('span').innerText = 'Consultando...';
 
         try {
-          const response = await fetch(`api.php?cpf=${cpf}&nonce=${encodeURIComponent(cpfLookupNonce)}`);
+          const response = await fetch(`/api/api?cpf=${cpf}&nonce=${encodeURIComponent(cpfLookupNonce)}`);
           const data = await response.json();
 
           if (data.found) {
