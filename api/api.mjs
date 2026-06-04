@@ -1,6 +1,6 @@
-import { config } from '../lib/config.js';
-import { isValidCpf, lookupCpfName, normalizeCpf } from '../lib/cpf.js';
-import { json } from '../lib/http.js';
+import { config } from '../lib/config.mjs';
+import { isValidCpf, lookupCpfName, normalizeCpf } from '../lib/cpf.mjs';
+import { json } from '../lib/http.mjs';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

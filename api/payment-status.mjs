@@ -1,5 +1,5 @@
-import { verifyChargeToken } from '../lib/charge-token.js';
-import { json } from '../lib/http.js';
+import { verifyChargeToken } from '../lib/charge-token.mjs';
+import { json } from '../lib/http.mjs';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

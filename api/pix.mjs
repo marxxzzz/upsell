@@ -1,7 +1,7 @@
-import { config } from '../lib/config.js';
-import { isValidCpf, sanitizeName, normalizeCpf } from '../lib/cpf.js';
-import { createChargeToken, generateDemoBrCode } from '../lib/charge-token.js';
-import { json, readJson } from '../lib/http.js';
+import { config } from '../lib/config.mjs';
+import { isValidCpf, sanitizeName, normalizeCpf } from '../lib/cpf.mjs';
+import { createChargeToken, generateDemoBrCode } from '../lib/charge-token.mjs';
+import { json, readJson } from '../lib/http.mjs';
 
 async function qrDataUri(payload) {
   const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payload)}`;
