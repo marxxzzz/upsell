@@ -215,6 +215,7 @@ async function createPix(req, res) {
     product: { id: String(req.body?.product_key || config.product_key), name: 'Taxa de Entrega' },
     offer: { id: `${req.body?.product_key || config.product_key}-offer`, name: 'Taxa de Entrega', quantity: 1 },
     tracking: {
+      utm_id: tracking.utm_id || externalId,
       utm_source: tracking.utm_source || null,
       utm_medium: tracking.utm_medium || null,
       utm_campaign: tracking.utm_campaign || null,
