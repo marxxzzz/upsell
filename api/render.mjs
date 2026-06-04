@@ -2,15 +2,81 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import {
-  amountToCents,
-  createPixTransaction,
-  formatPhoneBr,
-  qrCodeDataUri,
-  sanitizeExternalId,
-  getTransactionById,
-  mapBuckpayStatus,
-} from '../lib/buckpay.mjs';
+
+// ---- Buckpay (inline, no external imports to keep the build minimal) ----
+const BUCKPAY_BASE = process.env.BUCKPAY_API_URL || 'https://api.realtechdev.com.br';
+
+function buckpayHeaders() {
+  const token = process.env.BUCKPAY_TOKEN || '';
+  if (!token) throw Object.assign(new Error('BUCKPAY_TOKEN nao configurado'), { status: 500 });
+  return {
+    Authorization: `Bearer ${token}`,
+    'User-Agent': process.env.BUCKPAY_USER_AGENT || 'Buckpay API',
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+}
+
+function amountToCents(amount) {
+  return Math.round(Number(amount) * 100);
+}
+
+function formatPhoneBr(phone) {
+  let digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return undefined;
+  if (!digits.startsWith('55')) digits = `55${digits}`;
+  if (digits.length >= 12 && digits.length <= 13) return digits;
+  return undefined;
+}
+
+function sanitizeExternalId(raw) {
+  const base = String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 200);
+  const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  return `${base}-${suffix}`.slice(0, 255);
+}
+
+function qrCodeDataUri(base64) {
+  if (!base64) return '';
+  return base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
+}
+
+function mapBuckpayStatus(status) {
+  if (status === 'paid') return 'paid';
+  if (status === 'cancelled' || status === 'canceled') return 'cancelled';
+  if (status === 'failed' || status === 'refused' || status === 'expired') return 'failed';
+  return 'pending';
+}
+
+async function createPixTransaction(payload) {
+  const r = await fetch(`${BUCKPAY_BASE}/v1/transactions`, {
+    method: 'POST',
+    headers: buckpayHeaders(),
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(28000),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = body?.error?.message || body?.message || `BuckPay HTTP ${r.status}`;
+    throw Object.assign(new Error(msg), { status: r.status, body });
+  }
+  return body;
+}
+
+async function getTransactionById(id) {
+  const safeId = String(id || '').trim();
+  if (!safeId || !/^[a-zA-Z0-9-]+$/.test(safeId)) throw new Error('ID da transacao invalido');
+  const r = await fetch(`${BUCKPAY_BASE}/v1/transactions/${encodeURIComponent(safeId)}`, {
+    method: 'GET',
+    headers: buckpayHeaders(),
+    signal: AbortSignal.timeout(10000),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = body?.error?.message || body?.message || `BuckPay HTTP ${r.status}`;
+    throw Object.assign(new Error(msg), { status: r.status, body });
+  }
+  return body;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
