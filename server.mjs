@@ -250,7 +250,7 @@ app.get('/checkout.php', (req, res) => {
   res.type('html').send(html);
 });
 
-app.get(['/', '/index.php'], (req, res) => {
+app.get(['/', '/correios', '/index.php'], (req, res) => {
   const trackingKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'src', 'campaign', 'fbclid', 'gclid', 'click_id'];
   trackingKeys.forEach((key) => {
     if (req.query[key]) req.session.tracking[key] = String(req.query[key]);
