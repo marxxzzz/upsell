@@ -6,7 +6,13 @@
       "src": "server.mjs",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["*.php", "includes/**", "public/**"]
+        "includeFiles": [
+          "index.php",
+          "objeto.php",
+          "checkout.php",
+          "includes/helpers.php",
+          "public/**"
+        ]
       }
     }
   ],
