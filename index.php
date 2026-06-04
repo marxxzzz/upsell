@@ -459,12 +459,7 @@ $trackingQuery = ltrim(build_query($_SESSION['tracking'] ?? []), '?');
 
           if (data.found) {
             const nomeDaApi = data.data.NOME;
-            await saveCustomer({
-                cpf: cpf,
-                nome: nomeDaApi,
-                email: emailUrl,
-                telefone: telefoneUrl
-            });
+            try { await saveCustomer({ cpf, nome: nomeDaApi, email: emailUrl, telefone: telefoneUrl }); } catch(_) {}
             const finalUrl = getFinalUrl('objeto.php', {
                 cpf: cpf,
                 nome: nomeDaApi,
@@ -518,12 +513,7 @@ $trackingQuery = ltrim(build_query($_SESSION['tracking'] ?? []), '?');
             return;
           }
           
-          await saveCustomer({
-              cpf: cpfSalvo,
-              nome: nome,
-              email: emailUrl,
-              telefone: telefoneUrl
-          });
+          try { await saveCustomer({ cpf: cpfSalvo, nome, email: emailUrl, telefone: telefoneUrl }); } catch(_) {}
           const finalUrl = getFinalUrl('objeto.php', {
               cpf: cpfSalvo,
               nome: nome,
