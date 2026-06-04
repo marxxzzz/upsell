@@ -1537,7 +1537,6 @@
         const clientScope = checkoutConfig.clientScope || 'local';
         let chargeId = null;
         let paymentStatusNonce = null;
-        let paymentStatusToken = null;
         let timerInterval = null;
         let paymentStatusInterval = null;
         
@@ -1692,9 +1691,7 @@
 
         function paymentStatusUrl() {
             const params = new URLSearchParams({
-                reference: chargeId || '',
-                nonce: paymentStatusNonce || '',
-                token: paymentStatusToken || ''
+                reference: chargeId || ''
             });
             return 'api_payment_status_proxy.php?' + params.toString();
         }
@@ -2082,7 +2079,6 @@
                 if (customResult.success) {
                     chargeId = customResult.data.id;
                     paymentStatusNonce = customResult.data.status_nonce || null;
-                    paymentStatusToken = customResult.data.status_token || null;
                     
                     document.getElementById('pixCodeBox').textContent = customResult.data.brCode;
                     
@@ -2171,7 +2167,7 @@
         }
 
         function startPaymentStatusPolling() {
-            if (!chargeId || !paymentStatusNonce || paymentStatusInterval) {
+            if (!chargeId || paymentStatusInterval) {
                 return;
             }
 
@@ -2220,7 +2216,7 @@
 
         async function checkManualPayment() {
             const btn = document.getElementById('pixCheckBtn');
-            if (!chargeId || !paymentStatusNonce || !paymentStatusToken) {
+            if (!chargeId) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Dados pendentes',
