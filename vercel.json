@@ -1,22 +1,13 @@
 {
   "version": 2,
   "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/api.php", "destination": "/api/api" },
-    { "source": "/save_customer.php", "destination": "/api/save-customer" },
-    { "source": "/api_pix_proxy.php", "destination": "/api/pix" },
-    { "source": "/api_payment_status_proxy.php", "destination": "/api/payment-status" },
-    { "source": "/index.php", "destination": "/index.html" },
-    { "source": "/objeto.php", "destination": "/objeto.html" },
-    { "source": "/checkout.php", "destination": "/checkout.html" }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
-      ]
+  "functions": {
+    "api/*.mjs": {
+      "runtime": "nodejs20.x"
     }
+  },
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/$1" }
   ]
 }
