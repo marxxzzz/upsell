@@ -2,11 +2,7 @@
   "functions": {
     "api/render.mjs": {
       "includeFiles": "index.php|objeto.php|checkout.php|includes/helpers.php|public/**"
-    },
-    "api/pix.mjs": {},
-    "api/api.mjs": {},
-    "api/payment-status.mjs": {},
-    "api/save-customer.mjs": {}
+    }
   },
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/render" }
