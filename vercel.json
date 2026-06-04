@@ -1,11 +1,10 @@
 {
   "functions": {
-    "api/*.mjs": {},
-    "server.mjs": {
+    "api/render.mjs": {
       "includeFiles": "index.php|objeto.php|checkout.php|includes/helpers.php|public/**"
     }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/server.mjs" }
+    { "source": "/(.*)", "destination": "/api/render" }
   ]
 }
