@@ -1,3 +1,10 @@
+<?php
+require_once __DIR__ . '/includes/helpers.php';
+session_start();
+$config = app_config();
+$_SESSION['tracking'] = array_merge($_SESSION['tracking'] ?? [], capture_tracking_params());
+$trackingQuery = ltrim(build_query($_SESSION['tracking'] ?? []), '?');
+?>
 <html lang="pt-BR">
 
 <head>
@@ -18,8 +25,6 @@
   <link crossorigin="" href="https://fonts.gstatic.com" rel="dns-prefetch preconnect" />
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <script src="/js/app-config.js"></script>
-  <script src="/js/funnel.js"></script>
 </head>
 
 <body class="">
@@ -338,10 +343,11 @@
     }
   </style>
   <script>
-    window.Funnel.captureTracking(window.location.search);
-    window.APP_CONFIG = Object.assign({}, window.AppConfig, {
-      trackingUrl: window.Funnel.getTrackingQuery(),
-    });
+    window.APP_CONFIG = <?php echo json_encode([
+        'cpfLookupNonce' => $config['cpf_lookup_nonce'],
+        'customerFlowNonce' => $config['customer_flow_nonce'],
+        'trackingUrl' => $trackingQuery,
+    ], JSON_UNESCAPED_UNICODE); ?>;
   </script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -371,7 +377,15 @@
           return query ? `${base}?${query}` : base;
       };
 
-      const saveCustomer = (payload) => window.Funnel.saveCustomerRemote(payload);
+      const saveCustomer = async (payload) => {
+        const response = await fetch('save_customer.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(Object.assign({ nonce: customerFlowNonce }, payload))
+        });
+        const data = await response.json();
+        return data && data.success;
+      };
 
       const showToast = (title, subtitle = '') => {
         let overlay = document.getElementById('toast-overlay');
@@ -451,7 +465,7 @@
                 email: emailUrl,
                 telefone: telefoneUrl
             });
-            const finalUrl = getFinalUrl('objeto.html', {
+            const finalUrl = getFinalUrl('objeto.php', {
                 cpf: cpf,
                 nome: nomeDaApi,
                 email: emailUrl,
@@ -510,7 +524,7 @@
               email: emailUrl,
               telefone: telefoneUrl
           });
-          const finalUrl = getFinalUrl('objeto.html', {
+          const finalUrl = getFinalUrl('objeto.php', {
               cpf: cpfSalvo,
               nome: nome,
               email: emailUrl,

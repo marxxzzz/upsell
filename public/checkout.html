@@ -1,3 +1,17 @@
+<?php
+require_once __DIR__ . '/includes/helpers.php';
+session_start();
+$config = app_config();
+$customer = get_customer_from_session();
+$tracking = $_SESSION['tracking'] ?? capture_tracking_params();
+$_SESSION['tracking'] = array_merge($_SESSION['tracking'] ?? [], $tracking);
+$amountFormatted = number_format((float) $config['amount'], 2, ',', '.');
+$initialName = $customer['nome'] ?? $customer['name'] ?? '';
+$initialDocument = $customer['cpf'] ?? '';
+$customerEmail = $customer['email'] ?? '';
+$customerTelephone = $customer['telefone'] ?? '';
+$trackingJson = json_encode($tracking, JSON_UNESCAPED_UNICODE);
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -10,9 +24,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="icon" href="imgs/favi-ect.png">
-    <script src="/js/app-config.js"></script>
-    <script src="/js/funnel.js"></script>
-    <script src="/js/checkout-boot.js"></script>
     <style>
         * {
             margin: 0;
@@ -1204,7 +1215,7 @@
         <div class="row justify-content-between align-items-center p-0 mt-3 mb-2">
             <div class="col-6 sub text-start">Subtotal</div>
             <div class="col-6 text-end sub">
-                R$ <span class="subtotal-value" data-amount></span>
+                R$ <span class="subtotal-value"><?php echo $amountFormatted; ?></span>
             </div>
         </div>
         
@@ -1214,7 +1225,7 @@
             <div class="row justify-content-between align-items-center total_mobile">
                 <div class="col-6 text-start">Total</div>
                 <div class="col-6 text-end">
-                    <span class="valor_total" id="totalValue">R$ <span data-amount></span></span>
+                    <span class="valor_total" id="totalValue">R$ <?php echo $amountFormatted; ?></span>
                 </div>
             </div>
         </div>
@@ -1382,7 +1393,7 @@
                 
                 <div class="pix-value-box">
                     <span class="pix-value-label">Valor a ser pago:</span>
-                    <span class="pix-value-amount">R$ <span data-amount></span></span>
+                    <span class="pix-value-amount">R$ <?php echo $amountFormatted; ?></span>
                 </div>
 
                 <div class="pix-manual-check">
@@ -1444,7 +1455,7 @@
                     <div class="pix-accordion-content">
                         <div style="display: flex; justify-content: space-between; padding: 10px 0;">
                             <span style="color: #666;">Valor total:</span>
-                            <span style="font-weight: 600;">R$ <span data-amount></span></span>
+                            <span style="font-weight: 600;">R$ <?php echo $amountFormatted; ?></span>
                         </div>
                     </div>
                 </div>
@@ -1464,6 +1475,19 @@
         </div>
     </div>
     
+    <script>
+    window.CHECKOUT_CONFIG = <?php echo json_encode([
+        'initialCustomerName' => $initialName,
+        'initialCustomerDocument' => $initialDocument,
+        'customerEmail' => $customerEmail,
+        'customerTelephone' => $customerTelephone,
+        'trackingData' => $tracking,
+        'productKey' => $config['product_key'],
+        'cpfLookupNonce' => $config['checkout_cpf_nonce'],
+        'amount' => (float) $config['amount'],
+        'clientScope' => 'local',
+    ], JSON_UNESCAPED_UNICODE); ?>;
+    </script>
     <script>
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
@@ -1691,17 +1715,11 @@
 
         function paymentStatusUrl() {
             const params = new URLSearchParams({
-                reference: chargeId || ''
+                reference: chargeId || '',
+                nonce: paymentStatusNonce || ''
             });
             return 'api_payment_status_proxy.php?' + params.toString();
         }
-
-        (function formatAmountLabels() {
-            const fmt = (amount || 58.36).toFixed(2).replace('.', ',');
-            document.querySelectorAll('[data-amount]').forEach((el) => {
-                el.textContent = fmt;
-            });
-        })();
 
         async function hydrateNameFromCpf() {
             const cpf = currentCustomerDocument();
@@ -2167,7 +2185,7 @@
         }
 
         function startPaymentStatusPolling() {
-            if (!chargeId || paymentStatusInterval) {
+            if (!chargeId || !paymentStatusNonce || paymentStatusInterval) {
                 return;
             }
 
@@ -2216,7 +2234,7 @@
 
         async function checkManualPayment() {
             const btn = document.getElementById('pixCheckBtn');
-            if (!chargeId) {
+            if (!chargeId || !paymentStatusNonce) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Dados pendentes',
