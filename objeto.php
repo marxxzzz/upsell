@@ -333,8 +333,8 @@ $checkoutSuffix = build_query($tracking);
                     </div>
                 </div>
                 <div class="gpc-e e_imagem dd e_1225979_1_16907 se_imagem" id="e_1225979_1_16907_d"
-                    ll_src="https://cdn.greatsoftwares.com.br/arquivos/paginas_editor/15850-3aeaa092368e52344c66b50a36527aa0.png"
-                    ll_src_mobile="https://cdn.greatsoftwares.com.br/arquivos/paginas_editor/15850-3aeaa092368e52344c66b50a36527aa0.png">
+                    ll_src="/imgs/timeline-valinhos.png"
+                    ll_src_mobile="/imgs/timeline-valinhos.png">
                     <div class="c imagem e_imagem"></div>
                 </div>
                 <div class="gpc-e e_titulo dd e_1225979_1_23145" id="e_1225979_1_23145_d" style="white-space: normal;">
